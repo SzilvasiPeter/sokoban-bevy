@@ -5,3 +5,8 @@ edition = "2024"
 
 [dependencies]
 bevy = "0.17.2"
+quick-xml = { version = "0.38.3", features = ["serialize"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_derive = "1.0.228"
+
+# TODO: Make the binary smaller

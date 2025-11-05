@@ -2,17 +2,37 @@ use bevy::prelude::*;
 use std::collections::HashSet;
 use std::ops::Add;
 
+use crate::loader::load_levels;
+
+mod loader;
+
 const TILE: i32 = 20;
+
+// TODO: Add reset shortcut
+// TODO: Add move counter
+// TODO: Add level browser
+// TODO: Add main menu "Classic", "Advanture" (generated maps) "Settings", "Exit"
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .insert_resource(Levels {
+            levels: load_levels("Levels/microban.slc").ok().unwrap(),
+        })
         .add_systems(Startup, setup)
         .add_systems(
             Update,
-            (player_input, box_movement, collision, apply_direction).chain(),
+            (move_player, box_movement, collision, apply_direction)
+                .chain()
+                .run_if(player_input),
         )
+        .add_systems(Update, (clear_map, next_level).chain().run_if(winning))
         .run();
+}
+
+#[derive(Resource)]
+struct Levels {
+    levels: Vec<loader::Level>,
 }
 
 #[derive(Component, Clone, Copy, Eq, PartialEq, Hash)]
@@ -44,56 +64,29 @@ struct Player;
 struct Box;
 
 #[derive(Component)]
+struct Goal;
+
+#[derive(Component)]
 struct Wall;
 
 #[derive(Component, Default, Clone, Copy)]
 struct Direction(Vec3);
 
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, levels: ResMut<Levels>) {
     commands.spawn(Camera2d);
-
-    let maze = [
-        "**********",
-        "*        *",
-        "*  **    *",
-        "*  *     *",
-        "*        *",
-        "**********",
-    ];
-
-    for (y, row) in maze.iter().enumerate() {
-        for (x, _) in row.chars().enumerate().filter(|(_, c)| *c == '*') {
-            let position = Grid(x as i32 * TILE, y as i32 * TILE);
-            commands.spawn((
-                Wall,
-                position,
-                Text2d::new("*"),
-                Transform::from_translation(position.into()),
-            ));
-        }
-    }
-
-    let position = Grid(100, 40);
-    commands.spawn((
-        Player,
-        position,
-        Direction::default(),
-        Text2d::new("X"),
-        Transform::from_translation(position.into()),
-    ));
-
-    for position in [Grid(100, 60), Grid(120, 40)] {
-        commands.spawn((
-            Box,
-            position,
-            Direction::default(),
-            Text2d::new("O"),
-            Transform::from_translation(position.into()),
-        ));
-    }
+    next_level(commands, levels);
 }
 
-fn player_input(keys: Res<ButtonInput<KeyCode>>, mut query: Query<&mut Direction, With<Player>>) {
+fn player_input(keys: Res<ButtonInput<KeyCode>>) -> bool {
+    keys.any_just_pressed([
+        KeyCode::ArrowUp,
+        KeyCode::ArrowDown,
+        KeyCode::ArrowLeft,
+        KeyCode::ArrowRight,
+    ])
+}
+
+fn move_player(keys: Res<ButtonInput<KeyCode>>, mut query: Query<&mut Direction, With<Player>>) {
     let mut dir = query.single_mut().unwrap();
     let delta = match () {
         _ if keys.just_pressed(KeyCode::ArrowUp) => Vec3::Y,
@@ -147,5 +140,98 @@ fn apply_direction(mut query: Query<(&mut Transform, &mut Direction, &mut Grid)>
         transform.translation += direction.0;
         *grid = *grid + Grid::from(direction.0);
         direction.0 = Vec3::ZERO;
+    }
+}
+
+fn winning(box_q: Query<&Grid, With<Box>>, goal_q: Query<&Grid, With<Goal>>) -> bool {
+    let goals: HashSet<Grid> = goal_q.iter().copied().collect();
+    let boxes: HashSet<Grid> = box_q.iter().copied().collect();
+
+    goals == boxes
+}
+
+fn clear_map(
+    mut commands: Commands,
+    query: Query<Entity, Or<(With<Player>, With<Box>, With<Goal>, With<Wall>)>>,
+) {
+    for entity in query.iter() {
+        commands.entity(entity).despawn();
+    }
+}
+
+fn next_level(mut commands: Commands, mut levels: ResMut<Levels>) {
+    if let Some(level) = levels.levels.pop() {
+        for (x, line) in level.lines.iter().enumerate() {
+            for (y, ch) in line.chars().enumerate() {
+                let position = Grid(x as i32 * TILE, y as i32 * TILE);
+                match ch {
+                    '#' => {
+                        commands.spawn((
+                            Wall,
+                            position,
+                            Text2d::new("#"),
+                            Transform::from_translation(position.into()),
+                        ));
+                    }
+                    '@' => {
+                        commands.spawn((
+                            Player,
+                            position,
+                            Direction::default(),
+                            Text2d::new("A"),
+                            Transform::from_translation(position.into()),
+                        ));
+                    }
+                    '$' => {
+                        commands.spawn((
+                            Box,
+                            position,
+                            Direction::default(),
+                            Text2d::new("O"),
+                            Transform::from_translation(position.into()),
+                        ));
+                    }
+                    '.' => {
+                        commands.spawn((
+                            Goal,
+                            position,
+                            Text2d::new("X"),
+                            Transform::from_translation(position.into()),
+                        ));
+                    }
+                    '*' => {
+                        commands.spawn((
+                            Box,
+                            position,
+                            Direction::default(),
+                            Text2d::new("O"),
+                            Transform::from_translation(position.into()),
+                        ));
+                        commands.spawn((
+                            Goal,
+                            position,
+                            Text2d::new("X"),
+                            Transform::from_translation(position.into()),
+                        ));
+                    }
+                    '+' => {
+                        commands.spawn((
+                            Player,
+                            position,
+                            Direction::default(),
+                            Text2d::new("A"),
+                            Transform::from_translation(position.into()),
+                        ));
+                        commands.spawn((
+                            Goal,
+                            position,
+                            Text2d::new("X"),
+                            Transform::from_translation(position.into()),
+                        ));
+                    }
+                    _ => {}
+                };
+            }
+        }
     }
 }
