@@ -261,14 +261,10 @@ fn shortcut(keys: Res<ButtonInput<KeyCode>>) -> bool {
 }
 
 fn keyboard_nav_system(keyboard: Res<ButtonInput<KeyCode>>, mut levels: ResMut<Levels>) {
-    if keyboard.just_pressed(KeyCode::KeyN) {
-        if levels.current + 1 < levels.levels.len() {
-            levels.current += 1;
-        }
+    if keyboard.just_pressed(KeyCode::KeyN) && levels.current + 1 < levels.levels.len() {
+        levels.current += 1;
     }
-    if keyboard.just_pressed(KeyCode::KeyB) {
-        if levels.current > 0 {
-            levels.current -= 1;
-        }
+    if keyboard.just_pressed(KeyCode::KeyB) && levels.current > 0 {
+        levels.current -= 1;
     }
 }
