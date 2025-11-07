@@ -15,7 +15,6 @@ pub struct Level {
     pub lines: Vec<String>,
 }
 
-// TODO: Convert the XML levels into a more lightweight JSON format
 pub fn load_levels(path: &'static str) -> Result<Vec<Level>, Box<dyn std::error::Error>> {
     let xml = fs::read_to_string(path)?;
 
@@ -24,10 +23,6 @@ pub fn load_levels(path: &'static str) -> Result<Vec<Level>, Box<dyn std::error:
     let level_xml = &xml[start..end];
 
     let collection: LevelCollection = from_str(level_xml)?;
-    let mut levels: Vec<Level> = collection.levels;
 
-    // Reverse levels to pop element from easy to hard
-    levels.reverse();
-
-    Ok(levels)
+    Ok(collection.levels)
 }

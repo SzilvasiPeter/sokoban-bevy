@@ -8,16 +8,20 @@ mod loader;
 
 const TILE: i32 = 20;
 
-// TODO: Add reset shortcut
 // TODO: Add move counter
+// TODO: Add skin
+// TODO: Convert the XML levels into a more lightweight JSON format
+// TODO: Clean up
 // TODO: Add level browser
+// TODO: Add skin browser
 // TODO: Add main menu "Classic", "Advanture" (generated maps) "Settings", "Exit"
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .insert_resource(Levels {
-            levels: load_levels("Levels/microban.slc").ok().unwrap(),
+            levels: load_levels("levels/microban.slc").ok().unwrap(),
+            current: 0,
         })
         .add_systems(Startup, setup)
         .add_systems(
@@ -26,13 +30,23 @@ fn main() {
                 .chain()
                 .run_if(player_input),
         )
-        .add_systems(Update, (clear_map, next_level).chain().run_if(winning))
+        .add_systems(
+            Update,
+            (clear_map, next_map, render_map).chain().run_if(winning),
+        )
+        .add_systems(
+            Update,
+            (keyboard_nav_system, clear_map, render_map)
+                .chain()
+                .run_if(shortcut),
+        )
         .run();
 }
 
 #[derive(Resource)]
 struct Levels {
     levels: Vec<loader::Level>,
+    current: usize,
 }
 
 #[derive(Component, Clone, Copy, Eq, PartialEq, Hash)]
@@ -74,7 +88,7 @@ struct Direction(Vec3);
 
 fn setup(mut commands: Commands, levels: ResMut<Levels>) {
     commands.spawn(Camera2d);
-    next_level(commands, levels);
+    render_map(commands, levels);
 }
 
 fn player_input(keys: Res<ButtonInput<KeyCode>>) -> bool {
@@ -159,8 +173,14 @@ fn clear_map(
     }
 }
 
-fn next_level(mut commands: Commands, mut levels: ResMut<Levels>) {
-    if let Some(level) = levels.levels.pop() {
+fn next_map(mut levels: ResMut<Levels>) {
+    if levels.current + 1 < levels.levels.len() {
+        levels.current += 1;
+    }
+}
+
+fn render_map(mut commands: Commands, levels: ResMut<Levels>) {
+    if let Some(level) = levels.levels.get(levels.current) {
         for (x, line) in level.lines.iter().enumerate() {
             for (y, ch) in line.chars().enumerate() {
                 let position = Grid(x as i32 * TILE, y as i32 * TILE);
@@ -232,6 +252,23 @@ fn next_level(mut commands: Commands, mut levels: ResMut<Levels>) {
                     _ => {}
                 };
             }
+        }
+    }
+}
+
+fn shortcut(keys: Res<ButtonInput<KeyCode>>) -> bool {
+    keys.any_just_pressed([KeyCode::KeyR, KeyCode::KeyN, KeyCode::KeyB])
+}
+
+fn keyboard_nav_system(keyboard: Res<ButtonInput<KeyCode>>, mut levels: ResMut<Levels>) {
+    if keyboard.just_pressed(KeyCode::KeyN) {
+        if levels.current + 1 < levels.levels.len() {
+            levels.current += 1;
+        }
+    }
+    if keyboard.just_pressed(KeyCode::KeyB) {
+        if levels.current > 0 {
+            levels.current -= 1;
         }
     }
 }
