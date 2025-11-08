@@ -6,14 +6,12 @@ use crate::loader::load_levels;
 
 mod loader;
 
-const TILE: i32 = 20;
+const TILE: i32 = 45;
 
-// TODO: Add move counter
-// TODO: Add skin
+// TODO: Create playing and stats panel
+// TODO: Add move counter and timer
 // TODO: Convert the XML levels into a more lightweight JSON format
 // TODO: Clean up
-// TODO: Add level browser
-// TODO: Add skin browser
 // TODO: Add main menu "Classic", "Advanture" (generated maps) "Settings", "Exit"
 
 fn main() {
@@ -23,7 +21,7 @@ fn main() {
             levels: load_levels("levels/microban.slc").ok().unwrap(),
             current: 0,
         })
-        .add_systems(Startup, setup)
+        .add_systems(Startup, (setup, fill_background))
         .add_systems(
             Update,
             (move_player, box_movement, collision, apply_direction)
@@ -86,9 +84,9 @@ struct Wall;
 #[derive(Component, Default, Clone, Copy)]
 struct Direction(Vec3);
 
-fn setup(mut commands: Commands, levels: ResMut<Levels>) {
+fn setup(mut commands: Commands, levels: Res<Levels>, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2d);
-    render_map(commands, levels);
+    render_map(commands, levels, asset_server);
 }
 
 fn player_input(keys: Res<ButtonInput<KeyCode>>) -> bool {
@@ -179,83 +177,6 @@ fn next_map(mut levels: ResMut<Levels>) {
     }
 }
 
-fn render_map(mut commands: Commands, levels: ResMut<Levels>) {
-    if let Some(level) = levels.levels.get(levels.current) {
-        for (x, line) in level.lines.iter().enumerate() {
-            for (y, ch) in line.chars().enumerate() {
-                let position = Grid(x as i32 * TILE, y as i32 * TILE);
-                match ch {
-                    '#' => {
-                        commands.spawn((
-                            Wall,
-                            position,
-                            Text2d::new("#"),
-                            Transform::from_translation(position.into()),
-                        ));
-                    }
-                    '@' => {
-                        commands.spawn((
-                            Player,
-                            position,
-                            Direction::default(),
-                            Text2d::new("A"),
-                            Transform::from_translation(position.into()),
-                        ));
-                    }
-                    '$' => {
-                        commands.spawn((
-                            Box,
-                            position,
-                            Direction::default(),
-                            Text2d::new("O"),
-                            Transform::from_translation(position.into()),
-                        ));
-                    }
-                    '.' => {
-                        commands.spawn((
-                            Goal,
-                            position,
-                            Text2d::new("X"),
-                            Transform::from_translation(position.into()),
-                        ));
-                    }
-                    '*' => {
-                        commands.spawn((
-                            Box,
-                            position,
-                            Direction::default(),
-                            Text2d::new("O"),
-                            Transform::from_translation(position.into()),
-                        ));
-                        commands.spawn((
-                            Goal,
-                            position,
-                            Text2d::new("X"),
-                            Transform::from_translation(position.into()),
-                        ));
-                    }
-                    '+' => {
-                        commands.spawn((
-                            Player,
-                            position,
-                            Direction::default(),
-                            Text2d::new("A"),
-                            Transform::from_translation(position.into()),
-                        ));
-                        commands.spawn((
-                            Goal,
-                            position,
-                            Text2d::new("X"),
-                            Transform::from_translation(position.into()),
-                        ));
-                    }
-                    _ => {}
-                };
-            }
-        }
-    }
-}
-
 fn shortcut(keys: Res<ButtonInput<KeyCode>>) -> bool {
     keys.any_just_pressed([KeyCode::KeyR, KeyCode::KeyN, KeyCode::KeyB])
 }
@@ -266,5 +187,73 @@ fn keyboard_nav_system(keyboard: Res<ButtonInput<KeyCode>>, mut levels: ResMut<L
     }
     if keyboard.just_pressed(KeyCode::KeyB) && levels.current > 0 {
         levels.current -= 1;
+    }
+}
+
+fn fill_background(mut commands: Commands, assets: Res<AssetServer>, windows: Query<&Window>) {
+    let window = windows.single().unwrap();
+
+    let cols = window.width() as i32 / TILE;
+    let rows = window.height() as i32 / TILE;
+
+    let start_x = -window.width() as i32 / 2;
+    let start_y = window.height() as i32 / 2;
+
+    for y in 0..rows {
+        for x in 0..cols {
+            commands.spawn((
+                Sprite::from_image(assets.load("skins/ground.png")),
+                Transform::from_translation(Vec3::new(
+                    (start_x + x * TILE + TILE / 2) as f32,
+                    (start_y - y * TILE - TILE / 2) as f32,
+                    -2.0,
+                )),
+            ));
+        }
+    }
+}
+
+fn render_map(mut commands: Commands, levels: Res<Levels>, assets: Res<AssetServer>) {
+    if let Some(level) = levels.levels.get(levels.current) {
+        for (y, line) in level.lines.iter().enumerate() {
+            for (x, ch) in line.chars().enumerate() {
+                let pos = Grid(x as i32 * TILE, y as i32 * TILE);
+
+                if matches!(ch, '.' | '*' | '+') {
+                    commands.spawn((
+                        Goal,
+                        pos,
+                        Sprite::from_image(assets.load("skins/goal.png")),
+                        Transform::from_translation(Vec3::from(pos) - Vec3::Z),
+                    ));
+                }
+                if matches!(ch, '$' | '*') {
+                    commands.spawn((
+                        Box,
+                        pos,
+                        Direction::default(),
+                        Sprite::from_image(assets.load("skins/box.png")),
+                        Transform::from_translation(Vec3::from(pos)),
+                    ));
+                }
+                if matches!(ch, '@' | '+') {
+                    commands.spawn((
+                        Player,
+                        pos,
+                        Direction::default(),
+                        Sprite::from_image(assets.load("skins/player.png")),
+                        Transform::from_translation(Vec3::from(pos)),
+                    ));
+                }
+                if ch == '#' {
+                    commands.spawn((
+                        Wall,
+                        pos,
+                        Sprite::from_image(assets.load("skins/wall.png")),
+                        Transform::from_translation(Vec3::from(pos)),
+                    ));
+                }
+            }
+        }
     }
 }
