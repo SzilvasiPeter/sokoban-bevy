@@ -8,12 +8,6 @@ mod loader;
 
 const TILE: i32 = 32;
 
-// TODO: Create playing and stats panel
-// TODO: Add move counter and timer
-// TODO: Convert the XML levels into a more lightweight JSON format
-// TODO: Clean up
-// TODO: Add main menu "Classic", "Advanture" (generated maps) "Settings", "Exit"
-
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
@@ -21,20 +15,29 @@ fn main() {
             levels: load_levels("levels/microban.slc").ok().unwrap(),
             current: 0,
         })
-        .add_systems(Startup, (setup, fill_background))
+        .insert_resource(MoveCounter(0))
+        .add_systems(Startup, (setup, fill_background, setup_ui))
         .add_systems(
             Update,
-            (move_player, box_movement, collision, apply_direction)
+            (
+                move_player,
+                box_movement,
+                collision,
+                apply_direction,
+                update_ui,
+            )
                 .chain()
                 .run_if(player_input),
         )
         .add_systems(
             Update,
-            (clear_map, next_map, render_map).chain().run_if(winning),
+            (clear_map, next_map, render_map, update_ui)
+                .chain()
+                .run_if(winning),
         )
         .add_systems(
             Update,
-            (keyboard_nav_system, clear_map, render_map)
+            (keyboard_nav_system, clear_map, render_map, update_ui)
                 .chain()
                 .run_if(shortcut),
         )
@@ -46,6 +49,12 @@ struct Levels {
     levels: Vec<loader::Level>,
     current: usize,
 }
+
+#[derive(Resource)]
+struct MoveCounter(u32);
+
+#[derive(Component)]
+struct MoveText;
 
 #[derive(Component, Clone, Copy, Eq, PartialEq, Hash)]
 struct Grid(i32, i32);
@@ -71,16 +80,12 @@ impl Add for Grid {
 
 #[derive(Component)]
 struct Player;
-
 #[derive(Component)]
 struct Box;
-
 #[derive(Component)]
 struct Goal;
-
 #[derive(Component)]
 struct Wall;
-
 #[derive(Component, Default, Clone, Copy)]
 struct Direction(Vec3);
 
@@ -92,6 +97,26 @@ fn setup(
 ) {
     commands.spawn(Camera2d);
     render_map(commands, levels, asset_server, windows);
+}
+
+fn setup_ui(mut commands: Commands) {
+    commands.spawn((
+        Text::new("Moves: 0"),
+        MoveText,
+        Node {
+            position_type: PositionType::Absolute,
+            top: Val::Px(10.),
+            left: Val::Px(10.),
+            ..default()
+        },
+    ));
+}
+
+fn update_ui(counter: Res<MoveCounter>, mut query: Query<&mut Text, With<MoveText>>) {
+    if counter.is_changed() {
+        let mut text = query.single_mut().unwrap();
+        text.0 = format!("Moves: {}", counter.0);
+    }
 }
 
 fn player_input(keys: Res<ButtonInput<KeyCode>>) -> bool {
@@ -152,8 +177,17 @@ fn collision(
     }
 }
 
-fn apply_direction(mut query: Query<(&mut Transform, &mut Direction, &mut Grid)>) {
-    for (mut transform, mut direction, mut grid) in &mut query {
+fn apply_direction(
+    mut counter: ResMut<MoveCounter>,
+    mut query: Query<(&mut Transform, &mut Direction, &mut Grid, Option<&Player>)>,
+) {
+    for (mut transform, mut direction, mut grid, player) in &mut query {
+        if direction.0 == Vec3::ZERO {
+            continue;
+        }
+        if player.is_some() {
+            counter.0 += 1;
+        }
         transform.translation += direction.0;
         *grid = *grid + Grid::from(direction.0);
         direction.0 = Vec3::ZERO;
@@ -168,9 +202,11 @@ fn winning(box_q: Query<&Grid, With<Box>>, goal_q: Query<&Grid, With<Goal>>) -> 
 }
 
 fn clear_map(
+    mut counter: ResMut<MoveCounter>,
     mut commands: Commands,
     query: Query<Entity, Or<(With<Player>, With<Box>, With<Goal>, With<Wall>)>>,
 ) {
+    counter.0 = 0;
     for entity in query.iter() {
         commands.entity(entity).despawn();
     }
@@ -196,7 +232,9 @@ fn keyboard_nav_system(keyboard: Res<ButtonInput<KeyCode>>, mut levels: ResMut<L
 }
 
 fn fill_background(mut commands: Commands, assets: Res<AssetServer>, windows: Query<&Window>) {
-    let window = windows.single().unwrap();
+    let Ok(window) = windows.single() else {
+        return;
+    };
 
     let cols = window.width() as i32 / TILE;
     let rows = window.height() as i32 / TILE;
@@ -224,7 +262,9 @@ fn render_map(
     assets: Res<AssetServer>,
     windows: Query<&Window>,
 ) {
-    let window = windows.single().unwrap();
+    let Ok(window) = windows.single() else {
+        return;
+    };
     let start_x = -window.width() as i32 / 2;
     let start_y = window.height() as i32 / 2;
 
