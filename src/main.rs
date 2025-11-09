@@ -6,7 +6,7 @@ use crate::loader::load_levels;
 
 mod loader;
 
-const TILE: i32 = 45;
+const TILE: i32 = 32;
 
 // TODO: Create playing and stats panel
 // TODO: Add move counter and timer
@@ -202,7 +202,7 @@ fn fill_background(mut commands: Commands, assets: Res<AssetServer>, windows: Qu
     for y in 0..rows {
         for x in 0..cols {
             commands.spawn((
-                Sprite::from_image(assets.load("skins/ground.png")),
+                Sprite::from_image(assets.load("ground.png")),
                 Transform::from_translation(Vec3::new(
                     (start_x + x * TILE + TILE / 2) as f32,
                     (start_y - y * TILE - TILE / 2) as f32,
@@ -223,7 +223,7 @@ fn render_map(mut commands: Commands, levels: Res<Levels>, assets: Res<AssetServ
                     commands.spawn((
                         Goal,
                         pos,
-                        Sprite::from_image(assets.load("skins/goal.png")),
+                        Sprite::from_image(assets.load("goal.png")),
                         Transform::from_translation(Vec3::from(pos) - Vec3::Z),
                     ));
                 }
@@ -232,7 +232,7 @@ fn render_map(mut commands: Commands, levels: Res<Levels>, assets: Res<AssetServ
                         Box,
                         pos,
                         Direction::default(),
-                        Sprite::from_image(assets.load("skins/box.png")),
+                        Sprite::from_image(assets.load("box.png")),
                         Transform::from_translation(Vec3::from(pos)),
                     ));
                 }
@@ -241,7 +241,7 @@ fn render_map(mut commands: Commands, levels: Res<Levels>, assets: Res<AssetServ
                         Player,
                         pos,
                         Direction::default(),
-                        Sprite::from_image(assets.load("skins/player.png")),
+                        Sprite::from_image(assets.load("player.png")),
                         Transform::from_translation(Vec3::from(pos)),
                     ));
                 }
@@ -249,7 +249,7 @@ fn render_map(mut commands: Commands, levels: Res<Levels>, assets: Res<AssetServ
                     commands.spawn((
                         Wall,
                         pos,
-                        Sprite::from_image(assets.load("skins/wall.png")),
+                        Sprite::from_image(assets.load("wall.png")),
                         Transform::from_translation(Vec3::from(pos)),
                     ));
                 }
