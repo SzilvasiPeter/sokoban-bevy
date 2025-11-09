@@ -100,16 +100,7 @@ fn setup(
 }
 
 fn setup_ui(mut commands: Commands) {
-    commands.spawn((
-        Text::new("Moves: 0"),
-        MoveText,
-        Node {
-            position_type: PositionType::Absolute,
-            top: Val::Px(10.),
-            left: Val::Px(10.),
-            ..default()
-        },
-    ));
+    commands.spawn((Text::new("Moves: 0"), MoveText));
 }
 
 fn update_ui(counter: Res<MoveCounter>, mut query: Query<&mut Text, With<MoveText>>) {
