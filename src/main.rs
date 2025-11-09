@@ -84,9 +84,14 @@ struct Wall;
 #[derive(Component, Default, Clone, Copy)]
 struct Direction(Vec3);
 
-fn setup(mut commands: Commands, levels: Res<Levels>, asset_server: Res<AssetServer>) {
+fn setup(
+    mut commands: Commands,
+    levels: Res<Levels>,
+    asset_server: Res<AssetServer>,
+    windows: Query<&Window>,
+) {
     commands.spawn(Camera2d);
-    render_map(commands, levels, asset_server);
+    render_map(commands, levels, asset_server, windows);
 }
 
 fn player_input(keys: Res<ButtonInput<KeyCode>>) -> bool {
@@ -213,11 +218,23 @@ fn fill_background(mut commands: Commands, assets: Res<AssetServer>, windows: Qu
     }
 }
 
-fn render_map(mut commands: Commands, levels: Res<Levels>, assets: Res<AssetServer>) {
+fn render_map(
+    mut commands: Commands,
+    levels: Res<Levels>,
+    assets: Res<AssetServer>,
+    windows: Query<&Window>,
+) {
+    let window = windows.single().unwrap();
+    let start_x = -window.width() as i32 / 2;
+    let start_y = window.height() as i32 / 2;
+
     if let Some(level) = levels.levels.get(levels.current) {
         for (y, line) in level.lines.iter().enumerate() {
             for (x, ch) in line.chars().enumerate() {
-                let pos = Grid(x as i32 * TILE, y as i32 * TILE);
+                let pos = Grid(
+                    start_x + x as i32 * TILE + TILE / 2,
+                    start_y - y as i32 * TILE - TILE / 2,
+                );
 
                 if matches!(ch, '.' | '*' | '+') {
                     commands.spawn((
