@@ -1,20 +1,18 @@
 use bevy::prelude::*;
+use serde::Deserialize;
+
 use std::collections::HashSet;
+use std::fs;
 use std::ops::Add;
-
-use crate::loader::load_levels;
-
-mod loader;
 
 const TILE: i32 = 32;
 
 fn main() {
+    let map: Map =
+        serde_json::from_str(&fs::read_to_string("levels/microban.json").unwrap()).unwrap();
     App::new()
         .add_plugins(DefaultPlugins)
-        .insert_resource(Levels {
-            levels: load_levels("levels/microban.slc").ok().unwrap(),
-            current: 0,
-        })
+        .insert_resource(map)
         .insert_resource(MoveCounter(0))
         .add_systems(Startup, (setup, fill_background, setup_ui))
         .add_systems(
@@ -44,9 +42,10 @@ fn main() {
         .run();
 }
 
-#[derive(Resource)]
-struct Levels {
-    levels: Vec<loader::Level>,
+#[derive(Resource, Debug, Deserialize)]
+struct Map {
+    levels: Vec<Vec<String>>,
+    #[serde(default)]
     current: usize,
 }
 
@@ -91,7 +90,7 @@ struct Direction(Vec3);
 
 fn setup(
     mut commands: Commands,
-    levels: Res<Levels>,
+    levels: Res<Map>,
     asset_server: Res<AssetServer>,
     windows: Query<&Window>,
 ) {
@@ -203,7 +202,7 @@ fn clear_map(
     }
 }
 
-fn next_map(mut levels: ResMut<Levels>) {
+fn next_map(mut levels: ResMut<Map>) {
     if levels.current + 1 < levels.levels.len() {
         levels.current += 1;
     }
@@ -213,7 +212,7 @@ fn shortcut(keys: Res<ButtonInput<KeyCode>>) -> bool {
     keys.any_just_pressed([KeyCode::KeyR, KeyCode::KeyN, KeyCode::KeyB])
 }
 
-fn keyboard_nav_system(keyboard: Res<ButtonInput<KeyCode>>, mut levels: ResMut<Levels>) {
+fn keyboard_nav_system(keyboard: Res<ButtonInput<KeyCode>>, mut levels: ResMut<Map>) {
     if keyboard.just_pressed(KeyCode::KeyN) && levels.current + 1 < levels.levels.len() {
         levels.current += 1;
     }
@@ -249,7 +248,7 @@ fn fill_background(mut commands: Commands, assets: Res<AssetServer>, windows: Qu
 
 fn render_map(
     mut commands: Commands,
-    levels: Res<Levels>,
+    levels: Res<Map>,
     assets: Res<AssetServer>,
     windows: Query<&Window>,
 ) {
@@ -260,7 +259,7 @@ fn render_map(
     let start_y = window.height() as i32 / 2;
 
     if let Some(level) = levels.levels.get(levels.current) {
-        for (y, line) in level.lines.iter().enumerate() {
+        for (y, line) in level.iter().enumerate() {
             for (x, ch) in line.chars().enumerate() {
                 let pos = Grid(
                     start_x + x as i32 * TILE + TILE / 2,
