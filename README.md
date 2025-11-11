@@ -16,3 +16,4 @@ TODOS:
 
 - Add main menu "Classic", "Adventure" (generated maps) "Settings", "Exit"
 - Align menu, game and statistic
+- Add option to select from multiple maps
