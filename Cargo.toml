@@ -14,5 +14,3 @@ serde_json = "1.0.145"
 [[bin]]
 name = "xml_to_json"
 path = "scripts/xml_to_json.rs"
-
-# TODO: Make the binary smaller

@@ -32,7 +32,7 @@ struct Map {
 }
 
 #[derive(Component)]
-struct MoveText;
+struct GameStat;
 #[derive(Component)]
 struct Player;
 #[derive(Component)]
@@ -139,7 +139,7 @@ fn handle_menu(
     if keys.just_pressed(Enter) {
         match menu.items[menu.selected] {
             "Play" => next_state.set(AppState::Game),
-            "Exit" => println!("TODO: exit from the app"),
+            "Exit" => println!("TODO: Exit from the app"),
             _ => {}
         }
     }
@@ -153,9 +153,9 @@ fn update_menu(menu: Res<Menu>, mut query: Query<&mut Text>) {
     }
 }
 
-fn clear_menu(mut cmds: Commands, query: Query<Entity, With<Text>>) {
-    for e in &query {
-        cmds.entity(e).despawn();
+fn clear_menu(mut commands: Commands, query: Query<Entity, With<Text>>) {
+    for entity in &query {
+        commands.entity(entity).despawn();
     }
 }
 
@@ -173,10 +173,14 @@ fn menu_text(menu: &Menu) -> String {
         .collect()
 }
 
-fn update_ui(counter: Res<MoveCounter>, mut query: Query<&mut Text, With<MoveText>>) {
+fn update_ui(
+    counter: Res<MoveCounter>,
+    map: Res<Map>,
+    mut query: Query<&mut Text, With<GameStat>>,
+) {
     if counter.is_changed() {
         if let Ok(mut text) = query.single_mut() {
-            text.0 = format!("Moves: {}", counter.0);
+            text.0 = format!("Moves: {} Levels: {}", counter.0, map.current + 1);
         }
     }
 }
@@ -284,7 +288,7 @@ fn keyboard_nav_system(keyboard: Res<ButtonInput<KeyCode>>, mut map: ResMut<Map>
 }
 
 fn setup_game(mut commands: Commands) {
-    commands.spawn((Text::new("Moves: 0"), MoveText));
+    commands.spawn((Text::new("Moves: 0 Levels: 1"), GameStat));
 }
 
 fn render_map(mut cmds: Commands, map: Res<Map>, assets: Res<AssetServer>, win: Query<&Window>) {
@@ -292,7 +296,7 @@ fn render_map(mut cmds: Commands, map: Res<Map>, assets: Res<AssetServer>, win: 
         return;
     };
     let start_x = -window.width() as i32 / 2;
-    let start_y = window.height() as i32 / 2;
+    let start_y = (window.height() as i32 / 2) - TILE;
 
     let goal_texture = assets.load("goal.png");
     let box_texture = assets.load("box.png");
