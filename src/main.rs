@@ -29,7 +29,6 @@ struct Map {
     levels: Vec<Vec<String>>,
     #[serde(default)]
     current: usize,
-    width: usize
 }
 
 #[derive(Component)]
