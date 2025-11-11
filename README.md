@@ -14,4 +14,5 @@ Resources:
 
 TODOS:
 
-- Add main menu "Classic", "Advanture" (generated maps) "Settings", "Exit"
+- Add main menu "Classic", "Adventure" (generated maps) "Settings", "Exit"
+- Align menu, game and statistic

@@ -1,4 +1,4 @@
-use bevy::prelude::KeyCode::{ArrowDown, ArrowLeft, ArrowRight, ArrowUp};
+use bevy::prelude::KeyCode::{ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Enter};
 use bevy::prelude::*;
 use serde::Deserialize;
 
@@ -8,6 +8,19 @@ const TILE: i32 = 32;
 
 type GameObjectsQuery<'world, 'system> =
     Query<'world, 'system, Entity, Or<(With<Player>, With<Box>, With<Goal>, With<Wall>)>>;
+
+#[derive(States, Debug, Clone, Eq, PartialEq, Hash, Default)]
+enum AppState {
+    #[default]
+    Menu,
+    Game,
+}
+
+#[derive(Resource)]
+struct Menu {
+    items: Vec<&'static str>,
+    selected: usize,
+}
 
 #[derive(Resource)]
 struct MoveCounter(u32);
@@ -58,9 +71,24 @@ fn main() {
 
     App::new()
         .add_plugins(DefaultPlugins)
+        .init_state::<AppState>()
+        .insert_resource(Menu {
+            items: vec!["Play", "Exit"],
+            selected: 0,
+        })
         .insert_resource(map)
         .insert_resource(MoveCounter(0))
-        .add_systems(Startup, (setup, fill_background))
+        .add_systems(Startup, setup)
+        .add_systems(
+            Update,
+            (handle_menu, update_menu)
+                .chain()
+                .run_if(in_state(AppState::Menu).and(menu_input)),
+        )
+        .add_systems(
+            OnEnter(AppState::Game),
+            (clear_menu, setup_game, render_map),
+        )
         .add_systems(
             Update,
             (
@@ -71,32 +99,85 @@ fn main() {
                 update_ui,
             )
                 .chain()
-                .run_if(player_input),
+                .run_if(in_state(AppState::Game).and(player_input)),
         )
         .add_systems(
             Update,
             (next_map, clear_map, render_map, update_ui)
                 .chain()
-                .run_if(winning),
+                .run_if(in_state(AppState::Game).and(winning)),
         )
         .add_systems(
             Update,
             (keyboard_nav_system, clear_map, render_map, update_ui)
                 .chain()
-                .run_if(shortcut),
+                .run_if(in_state(AppState::Game).and(shortcut)),
         )
         .run();
 }
 
-fn setup(mut cmds: Commands, levels: Res<Map>, assets: Res<AssetServer>, windows: Query<&Window>) {
-    cmds.spawn(Camera2d);
-    cmds.spawn((Text::new("Moves: 0"), MoveText));
-    render_map(cmds, levels, assets, windows);
+fn setup(mut commands: Commands, menu: Res<Menu>) {
+    commands.spawn(Camera2d);
+    commands.spawn(Text::new(menu_text(&menu)));
 }
 
-fn update_ui(counter: Res<MoveCounter>, mut text: Query<&mut Text, With<MoveText>>) {
+fn menu_input(keys: Res<ButtonInput<KeyCode>>) -> bool {
+    keys.any_just_pressed([ArrowUp, ArrowDown, Enter])
+}
+
+fn handle_menu(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut menu: ResMut<Menu>,
+    mut next_state: ResMut<NextState<AppState>>,
+) {
+    if keys.just_pressed(ArrowUp) {
+        menu.selected = (menu.selected + menu.items.len() - 1) % menu.items.len();
+    }
+    if keys.just_pressed(ArrowDown) {
+        menu.selected = (menu.selected + 1) % menu.items.len();
+    }
+    if keys.just_pressed(Enter) {
+        match menu.items[menu.selected] {
+            "Play" => next_state.set(AppState::Game),
+            "Exit" => println!("TODO: exit from the app"),
+            _ => {}
+        }
+    }
+}
+
+fn update_menu(menu: Res<Menu>, mut query: Query<&mut Text>) {
+    if menu.is_changed() {
+        for mut text in &mut query {
+            text.0 = menu_text(&menu);
+        }
+    }
+}
+
+fn clear_menu(mut cmds: Commands, query: Query<Entity, With<Text>>) {
+    for e in &query {
+        cmds.entity(e).despawn();
+    }
+}
+
+fn menu_text(menu: &Menu) -> String {
+    menu.items
+        .iter()
+        .enumerate()
+        .map(|(i, &item)| {
+            if i == menu.selected {
+                format!("> {}\n", item)
+            } else {
+                format!("  {}\n", item)
+            }
+        })
+        .collect()
+}
+
+fn update_ui(counter: Res<MoveCounter>, mut query: Query<&mut Text, With<MoveText>>) {
     if counter.is_changed() {
-        text.single_mut().unwrap().0 = format!("Moves: {}", counter.0);
+        if let Ok(mut text) = query.single_mut() {
+            text.0 = format!("Moves: {}", counter.0);
+        }
     }
 }
 
@@ -202,30 +283,8 @@ fn keyboard_nav_system(keyboard: Res<ButtonInput<KeyCode>>, mut map: ResMut<Map>
     }
 }
 
-fn fill_background(mut commands: Commands, assets: Res<AssetServer>, windows: Query<&Window>) {
-    let Ok(window) = windows.single() else {
-        return;
-    };
-
-    let cols = window.width() as i32 / TILE;
-    let rows = window.height() as i32 / TILE;
-    let start_x = -window.width() as i32 / 2;
-    let start_y = window.height() as i32 / 2;
-
-    let texture = assets.load("ground.png");
-
-    for y in 0..rows {
-        for x in 0..cols {
-            commands.spawn((
-                Sprite::from_image(texture.clone()),
-                Transform::from_translation(Vec3::new(
-                    (start_x + x * TILE + TILE / 2) as f32,
-                    (start_y - y * TILE - TILE / 2) as f32,
-                    -2.0,
-                )),
-            ));
-        }
-    }
+fn setup_game(mut commands: Commands) {
+    commands.spawn((Text::new("Moves: 0"), MoveText));
 }
 
 fn render_map(mut cmds: Commands, map: Res<Map>, assets: Res<AssetServer>, win: Query<&Window>) {
