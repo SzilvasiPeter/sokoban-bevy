@@ -29,6 +29,7 @@ struct Map {
     levels: Vec<Vec<String>>,
     #[serde(default)]
     current: usize,
+    width: usize
 }
 
 #[derive(Component)]
@@ -298,10 +299,10 @@ fn render_map(mut cmds: Commands, map: Res<Map>, assets: Res<AssetServer>, win: 
     let start_x = -window.width() as i32 / 2;
     let start_y = (window.height() as i32 / 2) - TILE;
 
-    let goal_texture = assets.load("goal.png");
-    let box_texture = assets.load("box.png");
-    let player_texture = assets.load("player.png");
-    let wall_texture = assets.load("wall.png");
+    let goal_texture = assets.load("chess/goal.png");
+    let box_texture = assets.load("chess/box.png");
+    let player_texture = assets.load("chess/player.png");
+    let wall_texture = assets.load("chess/wall.png");
 
     if let Some(level) = map.levels.get(map.current) {
         for (y, line) in level.iter().enumerate() {
