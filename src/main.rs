@@ -25,16 +25,27 @@ enum MenuItem {
 }
 
 #[derive(Resource)]
+struct MoveCounter(u32);
+
+#[derive(Resource)]
 struct Menu {
     items: Vec<MenuItem>,
     selected: usize,
 }
 
-#[derive(Resource)]
-struct MoveCounter(u32);
-#[derive(Resource, Debug, Deserialize)]
+#[derive(Deserialize)]
+struct Level {
+    height: usize,
+    width: usize,
+    lines: Vec<String>,
+}
+
+#[derive(Resource, Deserialize)]
 struct Map {
-    levels: Vec<Vec<String>>,
+    name: String,
+    difficulty: String,
+    num_levels: usize,
+    levels: Vec<Level>,
     #[serde(default)]
     current: usize,
 }
@@ -74,10 +85,8 @@ impl std::ops::Add for Grid {
 }
 
 fn main() {
-    // TODO: Add the map name, number of levels, difficulty
-    // TODO: Make the map selectable from easy, medium, hard
-    let map: Map =
-        serde_json::from_str(&std::fs::read_to_string("levels/microban.json").unwrap()).unwrap();
+    let content = std::fs::read_to_string("levels/Easy_5_boxes.json").unwrap();
+    let map: Map = serde_json::from_str(&content).unwrap();
 
     App::new()
         .add_plugins(DefaultPlugins)
@@ -143,6 +152,7 @@ fn menu_input(keys: Res<ButtonInput<KeyCode>>) -> bool {
 fn handle_menu(
     keys: Res<ButtonInput<KeyCode>>,
     mut menu: ResMut<Menu>,
+    map: Res<Map>,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     if keys.just_pressed(ArrowUp) {
@@ -153,8 +163,19 @@ fn handle_menu(
     }
     if keys.just_pressed(Enter) {
         match menu.items[menu.selected] {
-            MenuItem::Classic => next_state.set(AppState::Game),
-            MenuItem::Rush => println!("TODO: limited time, random maps from easy to hard"),
+            MenuItem::Classic => {
+                println!("TODO: difficulty (easy, medium, hard) option.");
+                println!("TODO: random (other) option.");
+                println!(
+                    "TODO: display the map name {} number of levels {}.",
+                    map.name, map.num_levels
+                );
+                next_state.set(AppState::Game);
+            }
+            MenuItem::Rush => println!(
+                "TODO: limited time, random map from easy to medium to hard. Use the map.difficulty: {}",
+                map.difficulty
+            ),
             MenuItem::Settings => println!("TODO: shortcut description, skin selection"),
             MenuItem::Exit => println!("TODO: exit from the app"),
         }
@@ -194,10 +215,10 @@ fn update_ui(
     map: Res<Map>,
     mut query: Query<&mut Text, With<GameStat>>,
 ) {
-    if counter.is_changed() {
-        if let Ok(mut text) = query.single_mut() {
-            text.0 = format!("Moves: {} Levels: {}", counter.0, map.current + 1);
-        }
+    if counter.is_changed()
+        && let Ok(mut text) = query.single_mut()
+    {
+        text.0 = format!("Moves: {} Levels: {}", counter.0, map.current + 1);
     }
 }
 
@@ -320,7 +341,10 @@ fn render_map(mut cmds: Commands, map: Res<Map>, assets: Res<AssetServer>, win: 
     let wall_texture = assets.load("chess/wall.png");
 
     if let Some(level) = map.levels.get(map.current) {
-        for (y, line) in level.iter().enumerate() {
+        println!("width: {}", level.width);
+        println!("height: {}", level.height);
+
+        for (y, line) in level.lines.iter().enumerate() {
             for (x, ch) in line.chars().enumerate() {
                 let pos = Grid(
                     start_x + x as i32 * TILE + TILE / 2,
