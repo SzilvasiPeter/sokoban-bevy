@@ -16,9 +16,17 @@ enum AppState {
     Game,
 }
 
+#[derive(Debug)]
+enum MenuItem {
+    Classic,
+    Rush,
+    Settings,
+    Exit,
+}
+
 #[derive(Resource)]
 struct Menu {
-    items: Vec<&'static str>,
+    items: Vec<MenuItem>,
     selected: usize,
 }
 
@@ -66,6 +74,8 @@ impl std::ops::Add for Grid {
 }
 
 fn main() {
+    // TODO: Add the map name, number of levels, difficulty
+    // TODO: Make the map selectable from easy, medium, hard
     let map: Map =
         serde_json::from_str(&std::fs::read_to_string("levels/microban.json").unwrap()).unwrap();
 
@@ -73,7 +83,12 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .init_state::<AppState>()
         .insert_resource(Menu {
-            items: vec!["Play", "Exit"],
+            items: vec![
+                MenuItem::Classic,
+                MenuItem::Rush,
+                MenuItem::Settings,
+                MenuItem::Exit,
+            ],
             selected: 0,
         })
         .insert_resource(map)
@@ -138,9 +153,10 @@ fn handle_menu(
     }
     if keys.just_pressed(Enter) {
         match menu.items[menu.selected] {
-            "Play" => next_state.set(AppState::Game),
-            "Exit" => println!("TODO: Exit from the app"),
-            _ => {}
+            MenuItem::Classic => next_state.set(AppState::Game),
+            MenuItem::Rush => println!("TODO: limited time, random maps from easy to hard"),
+            MenuItem::Settings => println!("TODO: shortcut description, skin selection"),
+            MenuItem::Exit => println!("TODO: exit from the app"),
         }
     }
 }
@@ -163,11 +179,11 @@ fn menu_text(menu: &Menu) -> String {
     menu.items
         .iter()
         .enumerate()
-        .map(|(i, &item)| {
+        .map(|(i, item)| {
             if i == menu.selected {
-                format!("> {}\n", item)
+                format!("> {:?}\n", item)
             } else {
-                format!("  {}\n", item)
+                format!("  {:?}\n", item)
             }
         })
         .collect()

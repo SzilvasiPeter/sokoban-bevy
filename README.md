@@ -11,6 +11,5 @@ Resources:
 
 TODOS:
 
-- Add main menu "Classic" (select map), "Adventure" (time control, random maps easy -> hard), "Settings" (shortcut description, skin selection), "Exit"
 - Align menu, game and statistic
 - Add option to select from multiple maps
