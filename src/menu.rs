@@ -36,7 +36,6 @@ impl Plugin for MenuPlugin {
             selected: 0,
         })
         .init_resource::<MapSelection>()
-        .add_systems(Startup, setup_menu)
         .add_systems(OnEnter(AppState::Menu), setup_menu)
         .add_systems(OnExit(AppState::Menu), clear_menu)
         .add_systems(
@@ -60,7 +59,6 @@ impl Plugin for MenuPlugin {
 }
 
 fn setup_menu(mut commands: Commands, menu: Res<Menu>) {
-    commands.spawn(Camera2d);
     commands.spawn(Text::new(menu_text(&menu)));
 }
 

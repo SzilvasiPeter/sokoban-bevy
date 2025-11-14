@@ -41,7 +41,6 @@ struct Level {
 fn main() {
     let mut maps = Vec::new();
 
-    // Load all JSON maps from levels/
     for entry in fs::read_dir("levels").unwrap() {
         let path = entry.unwrap().path();
         if path.extension().is_some_and(|e| e == "json") {
@@ -55,6 +54,11 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .init_state::<AppState>()
         .insert_resource(Maps(maps))
+        .add_systems(Startup, setup_camera)
         .add_plugins((MenuPlugin, GamePlugin))
         .run();
+}
+
+fn setup_camera(mut commands: Commands) {
+    commands.spawn(Camera2d);
 }
