@@ -37,21 +37,25 @@ impl Plugin for MenuPlugin {
         })
         .init_resource::<MapSelection>()
         .add_systems(Startup, setup_menu)
+        .add_systems(OnEnter(AppState::Menu), setup_menu)
+        .add_systems(OnExit(AppState::Menu), clear_menu)
+        .add_systems(
+            OnEnter(AppState::ResearchMenu),
+            (clear_menu, setup_research).chain(),
+        )
+        .add_systems(OnExit(AppState::ResearchMenu), clear_menu)
         .add_systems(
             Update,
             (handle_menu, update_menu)
                 .chain()
                 .run_if(in_state(AppState::Menu).and(menu_input)),
         )
-        .add_systems(OnExit(AppState::Menu), clear_menu)
-        .add_systems(OnEnter(AppState::ResearchMenu), setup_research_menu)
         .add_systems(
             Update,
-            (handle_research_menu, update_research_menu)
+            (handle_research, update_research)
                 .chain()
                 .run_if(in_state(AppState::ResearchMenu).and(menu_input)),
-        )
-        .add_systems(OnExit(AppState::ResearchMenu), clear_menu);
+        );
     }
 }
 
@@ -61,7 +65,12 @@ fn setup_menu(mut commands: Commands, menu: Res<Menu>) {
 }
 
 fn menu_input(keys: Res<ButtonInput<KeyCode>>) -> bool {
-    keys.any_just_pressed([KeyCode::ArrowUp, KeyCode::ArrowDown, KeyCode::Enter])
+    keys.any_just_pressed([
+        KeyCode::ArrowUp,
+        KeyCode::ArrowDown,
+        KeyCode::Enter,
+        KeyCode::Backspace,
+    ])
 }
 
 fn handle_menu(
@@ -128,12 +137,12 @@ fn menu_text(menu: &Menu) -> String {
         .collect()
 }
 
-fn setup_research_menu(mut cmds: Commands, maps: Res<Maps>, mut selection: ResMut<MapSelection>) {
+fn setup_research(mut cmds: Commands, maps: Res<Maps>, mut selection: ResMut<MapSelection>) {
     selection.index = 0;
     cmds.spawn(Text::new(research_text(&maps, selection.index)));
 }
 
-fn handle_research_menu(
+fn handle_research(
     keys: Res<ButtonInput<KeyCode>>,
     mut next_state: ResMut<NextState<AppState>>,
     mut selection: ResMut<MapSelection>,
@@ -148,8 +157,9 @@ fn handle_research_menu(
     if keys.just_pressed(KeyCode::ArrowDown) {
         selection.index = (selection.index + 1) % total;
     }
-
-    // ENTER selects a map
+    if keys.just_pressed(KeyCode::Backspace) {
+        next_state.set(AppState::Menu);
+    }
     if keys.just_pressed(KeyCode::Enter) {
         let chosen = maps.0[selection.index].clone();
         commands.insert_resource(chosen);
@@ -157,11 +167,7 @@ fn handle_research_menu(
     }
 }
 
-fn update_research_menu(
-    maps: Res<Maps>,
-    selection: Res<MapSelection>,
-    mut query: Query<&mut Text>,
-) {
+fn update_research(maps: Res<Maps>, selection: Res<MapSelection>, mut query: Query<&mut Text>) {
     if !selection.is_changed() {
         return;
     }

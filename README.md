@@ -11,7 +11,6 @@ Resources:
 
 TODOS:
 
-- Add back button
 - Serialize the solved value, extend map with num_solved field
 - Load more maps, make map list scrollable
 - Align menu, game and statistic

@@ -49,6 +49,7 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(MoveCounter(0))
             .add_systems(OnEnter(AppState::Game), (setup_game, render_map))
+            .add_systems(OnExit(AppState::Game), clear_map)
             .add_systems(
                 Update,
                 (
@@ -178,10 +179,22 @@ fn next_map(mut map: ResMut<Map>) {
 }
 
 fn shortcut(keys: Res<ButtonInput<KeyCode>>) -> bool {
-    keys.any_just_pressed([KeyCode::KeyR, KeyCode::KeyN, KeyCode::KeyB])
+    keys.any_just_pressed([
+        KeyCode::KeyR,
+        KeyCode::KeyN,
+        KeyCode::KeyB,
+        KeyCode::Backspace,
+    ])
 }
 
-fn keyboard_nav_system(keyboard: Res<ButtonInput<KeyCode>>, mut map: ResMut<Map>) {
+fn keyboard_nav_system(
+    keyboard: Res<ButtonInput<KeyCode>>,
+    mut next_state: ResMut<NextState<AppState>>,
+    mut map: ResMut<Map>,
+) {
+    if keyboard.just_pressed(KeyCode::Backspace) {
+        next_state.set(AppState::ResearchMenu);
+    }
     if keyboard.just_pressed(KeyCode::KeyN) {
         map.current = (map.current + 1).min(map.levels.len().saturating_sub(1));
     }
