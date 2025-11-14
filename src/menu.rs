@@ -1,8 +1,8 @@
-use crate::{AppState, Map};
+use crate::{AppState, Maps};
 use bevy::prelude::*;
 
 #[derive(Debug)]
-pub enum MenuItem {
+enum MenuItem {
     Random,
     Rush,
     Research,
@@ -11,9 +11,14 @@ pub enum MenuItem {
 }
 
 #[derive(Resource)]
-pub struct Menu {
+struct Menu {
     items: Vec<MenuItem>,
     selected: usize,
+}
+
+#[derive(Resource, Default)]
+struct MapSelection {
+    index: usize,
 }
 
 pub struct MenuPlugin;
@@ -30,6 +35,7 @@ impl Plugin for MenuPlugin {
             ],
             selected: 0,
         })
+        .init_resource::<MapSelection>()
         .add_systems(Startup, setup_menu)
         .add_systems(
             Update,
@@ -37,7 +43,15 @@ impl Plugin for MenuPlugin {
                 .chain()
                 .run_if(in_state(AppState::Menu).and(menu_input)),
         )
-        .add_systems(OnExit(AppState::Menu), clear_menu);
+        .add_systems(OnExit(AppState::Menu), clear_menu)
+        .add_systems(OnEnter(AppState::ResearchMenu), setup_research_menu)
+        .add_systems(
+            Update,
+            (handle_research_menu, update_research_menu)
+                .chain()
+                .run_if(in_state(AppState::ResearchMenu).and(menu_input)),
+        )
+        .add_systems(OnExit(AppState::ResearchMenu), clear_menu);
     }
 }
 
@@ -53,7 +67,7 @@ fn menu_input(keys: Res<ButtonInput<KeyCode>>) -> bool {
 fn handle_menu(
     keys: Res<ButtonInput<KeyCode>>,
     mut menu: ResMut<Menu>,
-    map: Res<Map>,
+    maps: Res<Maps>,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     if keys.just_pressed(KeyCode::ArrowUp) {
@@ -66,19 +80,19 @@ fn handle_menu(
         match menu.items[menu.selected] {
             MenuItem::Random => println!(
                 "TODO: random unsolved level. Use the level.solved: {:?}",
-                map.levels.iter().find(|level| !level.solved).unwrap()
+                maps.0[0].levels.iter().find(|level| !level.solved).unwrap()
             ),
             MenuItem::Rush => println!(
                 "TODO: limited time, random map from easy to medium to hard. Use the map.difficulty: {}",
-                map.difficulty
+                maps.0[0].difficulty
             ),
             MenuItem::Research => {
                 println!("TODO: difficulty (easy, medium, hard) option.");
                 println!(
                     "TODO: display the map name {} number of levels {}.",
-                    map.name, map.num_levels
+                    maps.0[0].name, maps.0[0].num_levels
                 );
-                next_state.set(AppState::Game);
+                next_state.set(AppState::ResearchMenu);
             }
             MenuItem::Settings => println!("TODO: shortcut description, skin selection"),
             MenuItem::Exit => println!("TODO: exit from the app"),
@@ -109,6 +123,63 @@ fn menu_text(menu: &Menu) -> String {
                 format!("> {:?}\n", item)
             } else {
                 format!("  {:?}\n", item)
+            }
+        })
+        .collect()
+}
+
+fn setup_research_menu(mut cmds: Commands, maps: Res<Maps>, mut selection: ResMut<MapSelection>) {
+    selection.index = 0;
+    cmds.spawn(Text::new(research_text(&maps, selection.index)));
+}
+
+fn handle_research_menu(
+    keys: Res<ButtonInput<KeyCode>>,
+    mut next_state: ResMut<NextState<AppState>>,
+    mut selection: ResMut<MapSelection>,
+    maps: Res<Maps>,
+    mut commands: Commands,
+) {
+    let total = maps.0.len();
+
+    if keys.just_pressed(KeyCode::ArrowUp) {
+        selection.index = (selection.index + total - 1) % total;
+    }
+    if keys.just_pressed(KeyCode::ArrowDown) {
+        selection.index = (selection.index + 1) % total;
+    }
+
+    // ENTER selects a map
+    if keys.just_pressed(KeyCode::Enter) {
+        let chosen = maps.0[selection.index].clone();
+        commands.insert_resource(chosen);
+        next_state.set(AppState::Game);
+    }
+}
+
+fn update_research_menu(
+    maps: Res<Maps>,
+    selection: Res<MapSelection>,
+    mut query: Query<&mut Text>,
+) {
+    if !selection.is_changed() {
+        return;
+    }
+
+    for mut text in &mut query {
+        text.0 = research_text(&maps, selection.index);
+    }
+}
+
+fn research_text(maps: &Maps, selected: usize) -> String {
+    maps.0
+        .iter()
+        .enumerate()
+        .map(|(i, map)| {
+            if i == selected {
+                format!("> {}\n", map.name)
+            } else {
+                format!("  {}\n", map.name)
             }
         })
         .collect()

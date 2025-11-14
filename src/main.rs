@@ -12,10 +12,14 @@ use menu::*;
 enum AppState {
     #[default]
     Menu,
+    ResearchMenu,
     Game,
 }
 
-#[derive(Resource, Deserialize)]
+#[derive(Resource)]
+struct Maps(Vec<Map>);
+
+#[derive(Resource, Deserialize, Clone)]
 struct Map {
     name: String,
     difficulty: String,
@@ -25,7 +29,7 @@ struct Map {
     current: usize,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 struct Level {
     height: usize,
     width: usize,
@@ -35,13 +39,22 @@ struct Level {
 }
 
 fn main() {
-    let content = fs::read_to_string("levels/Easy_5_boxes.json").unwrap();
-    let map: Map = serde_json::from_str(&content).unwrap();
+    let mut maps = Vec::new();
+
+    // Load all JSON maps from levels/
+    for entry in fs::read_dir("levels").unwrap() {
+        let path = entry.unwrap().path();
+        if path.extension().is_some_and(|e| e == "json") {
+            let content = fs::read_to_string(&path).unwrap();
+            let map: Map = serde_json::from_str(&content).unwrap();
+            maps.push(map);
+        }
+    }
 
     App::new()
         .add_plugins(DefaultPlugins)
         .init_state::<AppState>()
-        .insert_resource(map)
+        .insert_resource(Maps(maps))
         .add_plugins((MenuPlugin, GamePlugin))
         .run();
 }

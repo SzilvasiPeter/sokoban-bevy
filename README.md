@@ -11,6 +11,8 @@ Resources:
 
 TODOS:
 
-- Classic: select maps, random level
+- Add back button
+- Serialize the solved value, extend map with num_solved field
+- Load more maps, make map list scrollable
 - Align menu, game and statistic
 - Add chess piece sound
