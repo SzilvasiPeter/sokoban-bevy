@@ -90,8 +90,7 @@ fn handle_menu(
                 maps.0[0].levels.iter().find(|level| !level.solved).unwrap()
             ),
             MenuItem::Rush => println!(
-                "TODO: limited time, random map from easy to medium to hard. Use the map.difficulty: {}",
-                maps.0[0].difficulty
+                "TODO: limited time, random map from easy to medium to hard. Use the levels.best_move",
             ),
             MenuItem::Research => {
                 println!("TODO: difficulty (easy, medium, hard) option.");

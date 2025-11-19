@@ -1,5 +1,7 @@
 use crate::{AppState, Map};
-use bevy::prelude::KeyCode::{ArrowDown, ArrowLeft, ArrowRight, ArrowUp};
+use bevy::prelude::KeyCode::{
+    ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Backspace, KeyB, KeyN, KeyR,
+};
 use bevy::prelude::*;
 use std::collections::HashSet;
 
@@ -27,13 +29,13 @@ struct Direction(Vec3);
 struct Grid(i32, i32);
 
 impl From<Grid> for Vec3 {
-    fn from(g: Grid) -> Self {
-        Vec3::new(g.0 as f32, g.1 as f32, 0.0)
+    fn from(grid: Grid) -> Self {
+        Vec3::new(grid.0 as f32, grid.1 as f32, 0.0)
     }
 }
 impl From<Vec3> for Grid {
-    fn from(v: Vec3) -> Self {
-        Grid(v.x.round() as i32, v.y.round() as i32)
+    fn from(vec: Vec3) -> Self {
+        Grid(vec.x.round() as i32, vec.y.round() as i32)
     }
 }
 impl std::ops::Add for Grid {
@@ -77,13 +79,9 @@ impl Plugin for GamePlugin {
     }
 }
 
-fn update_ui(
-    counter: Res<MoveCounter>,
-    map: Res<Map>,
-    mut query: Query<&mut Text, With<GameStat>>,
-) {
+fn update_ui(counter: Res<MoveCounter>, map: Res<Map>, mut q: Query<&mut Text, With<GameStat>>) {
     if counter.is_changed()
-        && let Ok(mut text) = query.single_mut()
+        && let Ok(mut text) = q.single_mut()
     {
         text.0 = format!("Moves: {} Levels: {}", counter.0, map.current + 1);
     }
@@ -165,7 +163,6 @@ fn apply_direction(
 fn winning(boxes: Query<&Grid, With<BoxObj>>, goals: Query<&Grid, With<Goal>>) -> bool {
     let goal_set: HashSet<Grid> = goals.iter().copied().collect();
     let box_set: HashSet<Grid> = boxes.iter().copied().collect();
-
     goal_set == box_set
 }
 
@@ -179,12 +176,7 @@ fn next_map(mut map: ResMut<Map>) {
 }
 
 fn shortcut(keys: Res<ButtonInput<KeyCode>>) -> bool {
-    keys.any_just_pressed([
-        KeyCode::KeyR,
-        KeyCode::KeyN,
-        KeyCode::KeyB,
-        KeyCode::Backspace,
-    ])
+    keys.any_just_pressed([KeyR, KeyN, KeyB, Backspace])
 }
 
 fn keyboard_nav_system(
@@ -192,13 +184,13 @@ fn keyboard_nav_system(
     mut next_state: ResMut<NextState<AppState>>,
     mut map: ResMut<Map>,
 ) {
-    if keyboard.just_pressed(KeyCode::Backspace) {
+    if keyboard.just_pressed(Backspace) {
         next_state.set(AppState::ResearchMenu);
     }
-    if keyboard.just_pressed(KeyCode::KeyN) {
+    if keyboard.just_pressed(KeyN) {
         map.current = (map.current + 1).min(map.levels.len().saturating_sub(1));
     }
-    if keyboard.just_pressed(KeyCode::KeyB) {
+    if keyboard.just_pressed(KeyB) {
         map.current = map.current.saturating_sub(1);
     }
 }
@@ -214,11 +206,6 @@ fn render_map(mut cmds: Commands, map: Res<Map>, assets: Res<AssetServer>, win: 
     let start_x = -window.width() as i32 / 2;
     let start_y = (window.height() as i32 / 2) - TILE;
 
-    let goal_texture = assets.load("chess/goal.png");
-    let box_texture = assets.load("chess/box.png");
-    let player_texture = assets.load("chess/player.png");
-    let wall_texture = assets.load("chess/wall.png");
-
     if let Some(level) = map.levels.get(map.current) {
         // TODO: Use the level width and height to align in the center
         println!("width: {}", level.width);
@@ -226,45 +213,27 @@ fn render_map(mut cmds: Commands, map: Res<Map>, assets: Res<AssetServer>, win: 
 
         for (y, line) in level.lines.iter().enumerate() {
             for (x, ch) in line.chars().enumerate() {
-                let pos = Grid(
+                let grid = Grid(
                     start_x + x as i32 * TILE + TILE / 2,
                     start_y - y as i32 * TILE - TILE / 2,
                 );
-                let pos_vec = Vec3::from(pos);
+                let transform = Transform::from_translation(Vec3::from(grid));
 
                 if matches!(ch, '.' | '*' | '+') {
-                    cmds.spawn((
-                        Goal,
-                        pos,
-                        Sprite::from_image(goal_texture.clone()),
-                        Transform::from_translation(pos_vec - Vec3::Z),
-                    ));
+                    let goal_sprite = Sprite::from_image(assets.load("chess/goal.png"));
+                    cmds.spawn((Goal, grid, goal_sprite, transform));
                 }
                 if matches!(ch, '$' | '*') {
-                    cmds.spawn((
-                        BoxObj,
-                        pos,
-                        Direction::default(),
-                        Sprite::from_image(box_texture.clone()),
-                        Transform::from_translation(pos_vec),
-                    ));
+                    let box_sprite = Sprite::from_image(assets.load("chess/box.png"));
+                    cmds.spawn((BoxObj, grid, Direction::default(), box_sprite, transform));
                 }
                 if matches!(ch, '@' | '+') {
-                    cmds.spawn((
-                        Player,
-                        pos,
-                        Direction::default(),
-                        Sprite::from_image(player_texture.clone()),
-                        Transform::from_translation(pos_vec),
-                    ));
+                    let player_sprite = Sprite::from_image(assets.load("chess/player.png"));
+                    cmds.spawn((Player, grid, Direction::default(), player_sprite, transform));
                 }
                 if ch == '#' {
-                    cmds.spawn((
-                        Wall,
-                        pos,
-                        Sprite::from_image(wall_texture.clone()),
-                        Transform::from_translation(pos_vec),
-                    ));
+                    let wall_sprite = Sprite::from_image(assets.load("chess/wall.png"));
+                    cmds.spawn((Wall, grid, wall_sprite, transform));
                 }
             }
         }

@@ -11,7 +11,7 @@ Resources:
 
 TODOS:
 
-- Serialize the solved value, extend map with num_solved field
+- Serialize the solved value, extend map with num_solved field, best_solution
 - Load more maps, make map list scrollable
 - Create chess board background
 - Align menu, game and statistic

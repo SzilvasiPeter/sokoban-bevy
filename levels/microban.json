@@ -1,5 +1,4 @@
 {
-  "difficulty": "easy",
   "levels": [
     {
       "height": 7,
@@ -2290,6 +2289,8 @@
       "width": 30
     }
   ],
+  "maxHeight": 17,
+  "maxWidth": 30,
   "name": "microban",
-  "num_levels": 155
+  "numLevels": 155
 }

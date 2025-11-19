@@ -22,9 +22,9 @@ struct Maps(Vec<Map>);
 #[derive(Resource, Deserialize, Clone)]
 struct Map {
     name: String,
-    difficulty: String,
-    num_levels: usize,
     levels: Vec<Level>,
+    #[serde(rename = "numLevels")]
+    num_levels: usize,
     #[serde(default)]
     current: usize,
 }
